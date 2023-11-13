@@ -1,0 +1,81 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+
+url = "http://hirr.hartsem.edu/mosque/database.html"
+response = requests.get(url)
+soup = BeautifulSoup(response.content, 'html.parser')
+options = soup.find_all('option')
+links = []
+states = []
+
+for x in options:
+    try:
+        links.append(x['value'])
+        words = x.string.split()
+        # Join the words with a single space
+        cleaned_state = ' '.join(words)
+        states.append(cleaned_state)
+    except:
+        pass
+        
+        
+mosques = [] 
+
+
+index = 0
+        
+for link in links:
+    
+    url = ""
+    url = url + links[index]
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser') # link sent to soup
+
+    
+    all_tr = soup.find_all("tr", {"bgcolor": "#E2E2E2"})
+
+    for tr in all_tr: # for each tr tag in one of the links
+        tds = tr.find_all('td')
+    
+        # Extracting Mosque Name
+        name = tds[0].text.replace('\r', '').replace('\n', '').strip()
+    
+        # Extracting Address
+        address = tds[1].text.strip()
+    
+        # Extracting City
+        city = tds[2].text.strip()
+    
+        # Extracting Zip
+        zip_code = tds[4].text.strip()
+    
+        # Extracting Contact
+        # Extracting Contact and Email
+        contact_and_email = tds[5]
+        contact = contact_and_email.find('br').previous_sibling.strip() if contact_and_email.find('br') and contact_and_email.find('br').previous_sibling else None
+        email_link = contact_and_email.find('a', href=True)
+        email = email_link['href'].split(':')[-1] if email_link and 'mailto' in email_link['href'] else None
+
+        mosque = {
+            'Name': name,
+            'Address': address,
+            'City': city,
+            'State': states[index],
+            'Zip': zip_code,
+            'Contact': contact,
+            'Email': email
+        }
+        mosques.append(mosque)
+        
+
+    # Convert list of dicts to DataFrame
+    df = pd.DataFrame(mosques)
+
+    # Save DataFrame to Excel
+    df.to_excel(f"{states[index]} Mosques Data.xlsx", index=False)
+    index += 1
+
+
+
